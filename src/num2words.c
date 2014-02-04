@@ -3,6 +3,7 @@
 #include "strings-en.h"
 #include "strings-es.h"
 #include "strings-fr.h"
+#include "strings-no.h"
 #include "strings-sv.h"
 #include "string.h"
 
@@ -55,6 +56,9 @@ const char* get_hour(Language lang, int index) {
     case FR:
       return HOURS_FR[index];
       break;
+    case NO:
+      return HOURS_NO[index];
+      break;
     case SV:
       return HOURS_SV[index];
       break;
@@ -73,6 +77,9 @@ const char* get_rel(Language lang, int index) {
       break;
     case FR:
       return RELS_FR[index];
+      break;
+    case NO:
+      return RELS_NO[index];
       break;
     case SV:
       return RELS_SV[index];

@@ -51,4 +51,3 @@ const char* const RELS_EN[] = {
   "ten to *$2",
   "five to *$2"
 };
-

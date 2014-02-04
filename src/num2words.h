@@ -6,7 +6,8 @@ typedef enum {
   EN = 0x1,
   ES = 0x2,
   FR = 0x3,
-  SV = 0x4
+  NO = 0x4,
+  SV = 0x5
 } Language;
 
 void time_to_words(Language lang, int hours, int minutes, int seconds, char* words, size_t length);
