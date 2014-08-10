@@ -16,6 +16,7 @@
 #define INVERT_KEY 0
 #define TEXT_ALIGN_KEY 1
 #define LANGUAGE_KEY 2
+#define DISPLAY_TOOLBAR_KEY 3
 
 #define TEXT_ALIGN_CENTER 0
 #define TEXT_ALIGN_LEFT 1
@@ -38,6 +39,7 @@ static uint8_t sync_buffer[64];
 static int text_align = TEXT_ALIGN_CENTER;
 static bool invert = false;
 static Language lang = EN_US;
+static bool displayToolbar = true;
 
 static Window *window;
 
@@ -54,7 +56,8 @@ static Line lines[NUM_LINES];
 static InverterLayer *inverter_layer;
 
 typedef struct {
-	TextLayer *layer;
+	TextLayer *dateLayer;
+	TextLayer *batteryLayer;
 } Toolbar;
 
 static Toolbar toolbar;
@@ -294,12 +297,32 @@ static void display_time(struct tm *t)
 }
 
 // Update screen based on new time
-static void refresh_toolbar(struct tm *t)
+static void refresh_toolbar(struct tm *t, BatteryChargeState *battState)
 {
     static char dateBuf[BUFFER_SIZE_DATE];
-    snprintf(dateBuf, BUFFER_SIZE_DATE, "%d. %s", t->tm_mday, get_month_text(lang, t->tm_mon));
+    static char battBuf[BUFFER_SIZE_DATE];
+    BatteryChargeState battStatePeeked;
 
-	text_layer_set_text(toolbar.layer, dateBuf);
+    if(displayToolbar == false) {
+        return;
+    }
+
+    if(t != NULL) {
+        snprintf(dateBuf, BUFFER_SIZE_DATE, "%d. %s", t->tm_mday, get_month_text(lang, t->tm_mon));
+    	text_layer_set_text(toolbar.dateLayer, dateBuf);
+    }
+
+    if(battState == NULL) {
+        battStatePeeked = battery_state_service_peek();
+        battState = &battStatePeeked;
+    }
+
+    if(battState->is_plugged == true) {
+        snprintf(battBuf, BUFFER_SIZE_DATE, "-");
+    } else {
+        snprintf(battBuf, BUFFER_SIZE_DATE, "%d%%", battState->charge_percent);
+    }
+	text_layer_set_text(toolbar.batteryLayer, battBuf);
 }
 
 static void initLineForStart(Line* line)
@@ -342,7 +365,13 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
 	t = tick_time;
 	display_time(tick_time);
 	/* No need to do this on every minute - but eaier */
-	refresh_toolbar(tick_time);
+	refresh_toolbar(tick_time, NULL);
+}
+
+
+static void handle_battery_state(BatteryChargeState chargeState)
+{
+	refresh_toolbar(NULL, &chargeState);
 }
 
 /**
@@ -351,10 +380,9 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
  */
 #if DEBUG
 
-static void up_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
+static void up_single_click_handler(ClickRecognizerRef recognizer, void *context) {
 	(void)recognizer;
-	(void)window;
-	
+
 	t->tm_min += 5;
 	if (t->tm_min >= 60) {
 		t->tm_min = 0;
@@ -367,11 +395,9 @@ static void up_single_click_handler(ClickRecognizerRef recognizer, Window *windo
 	display_time(t);
 }
 
-
-static void down_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
+static void down_single_click_handler(ClickRecognizerRef recognizer, void *context) {
 	(void)recognizer;
-	(void)window;
-	
+
 	t->tm_min -= 5;
 	if (t->tm_min < 0) {
 		t->tm_min = 55;
@@ -384,14 +410,9 @@ static void down_single_click_handler(ClickRecognizerRef recognizer, Window *win
 	display_time(t);
 }
 
-static void click_config_provider(ClickConfig **config, Window *window) {
-  (void)window;
-
-  config[BUTTON_ID_UP]->click.handler = (ClickHandler) up_single_click_handler;
-  config[BUTTON_ID_UP]->click.repeat_interval_ms = 100;
-
-  config[BUTTON_ID_DOWN]->click.handler = (ClickHandler) down_single_click_handler;
-  config[BUTTON_ID_DOWN]->click.repeat_interval_ms = 100;
+static void click_config_provider(void *context) {
+    window_single_click_subscribe(BUTTON_ID_UP, up_single_click_handler);
+    window_single_click_subscribe(BUTTON_ID_DOWN, down_single_click_handler);
 }
 
 #endif
@@ -435,6 +456,14 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			{
 				display_time(t);
 			}
+            break;
+		case DISPLAY_TOOLBAR_KEY:
+			displayToolbar = new_tuple->value->uint8 == 1;
+			persist_write_bool(DISPLAY_TOOLBAR_KEY, displayToolbar);
+			APP_LOG(APP_LOG_LEVEL_DEBUG, "Set display toolbar: %u", displayToolbar ? 1 : 0);
+
+            refresh_toolbar(NULL, NULL);
+			break;
 	}
 }
 
@@ -466,22 +495,29 @@ static void destroy_line(Line* line)
 	text_layer_destroy(line->nextLayer);
 }
 
-static void init_toolbar(Toolbar* tb, int windowHeight)
+static void configureToolbarText(TextLayer *textLayer, GTextAlignment alignment)
+{
+	text_layer_set_font(textLayer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+	text_layer_set_text_color(textLayer, (invert == true) ? GColorBlack : GColorWhite);
+	text_layer_set_background_color(textLayer, GColorClear);
+	text_layer_set_text_alignment(textLayer, alignment);
+}
+
+static void init_toolbar(Toolbar* tb, GRect windowBounds)
 {
 	// Create layers with dummy position to the right of the screen
-	tb->layer = text_layer_create(GRect(0, windowHeight - TOOLBAR_HEIGHT, 144, TOOLBAR_HEIGHT));
+	tb->dateLayer = text_layer_create(GRect(0, windowBounds.size.h - TOOLBAR_HEIGHT, windowBounds.size.w - 30, TOOLBAR_HEIGHT));
+    configureToolbarText(tb->dateLayer, GTextAlignmentLeft);
 
-	// Configure a style
-	text_layer_set_font(tb->layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
-	text_layer_set_text_color(tb->layer, GColorWhite);
-	text_layer_set_background_color(tb->layer, GColorBlack);
-	text_layer_set_text_alignment(tb->layer, GTextAlignmentCenter);
+	tb->batteryLayer = text_layer_create(GRect(windowBounds.size.w - 30, windowBounds.size.h - TOOLBAR_HEIGHT, 30, TOOLBAR_HEIGHT));
+    configureToolbarText(tb->batteryLayer, GTextAlignmentRight);
 }
 
 static void destroy_toolbar(Toolbar* tb)
 {
 	// Free layer
-	text_layer_destroy(tb->layer);
+	text_layer_destroy(tb->dateLayer);
+	text_layer_destroy(tb->batteryLayer);
 }
 
 static void window_load(Window *window)
@@ -497,8 +533,9 @@ static void window_load(Window *window)
 		layer_add_child(window_layer, (Layer *)lines[i].nextLayer);
 	}
 
-    init_toolbar(&toolbar, bounds.size.h);
-    layer_add_child(window_layer, (Layer *)toolbar.layer);
+    init_toolbar(&toolbar, bounds);
+    layer_add_child(window_layer, (Layer *)toolbar.dateLayer);
+    layer_add_child(window_layer, (Layer *)toolbar.batteryLayer);
 
 	inverter_layer = inverter_layer_create(bounds);
 	layer_set_hidden(inverter_layer_get_layer(inverter_layer), !invert);
@@ -510,12 +547,13 @@ static void window_load(Window *window)
 	time(&raw_time);
 	t = localtime(&raw_time);
 	display_initial_time(t);
-	refresh_toolbar(t);
+	refresh_toolbar(t, NULL);
 
 	Tuplet initial_values[] = {
-		TupletInteger(TEXT_ALIGN_KEY, (uint8_t) text_align),
-		TupletInteger(INVERT_KEY,     (uint8_t) invert ? 1 : 0),
-		TupletInteger(LANGUAGE_KEY,   (uint8_t) lang)
+		TupletInteger(TEXT_ALIGN_KEY,      (uint8_t) text_align),
+		TupletInteger(INVERT_KEY,          (uint8_t) invert ? 1 : 0),
+		TupletInteger(LANGUAGE_KEY,        (uint8_t) lang),
+		TupletInteger(DISPLAY_TOOLBAR_KEY, (uint8_t) displayToolbar ? 1 : 0),
 	};
 
 	app_sync_init(&sync, sync_buffer, sizeof(sync_buffer), initial_values, ARRAY_LENGTH(initial_values),
@@ -552,6 +590,11 @@ static void handle_init() {
 		lang = (Language) persist_read_int(LANGUAGE_KEY);
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "Read language from store: %u", lang);
 	}
+	if (persist_exists(DISPLAY_TOOLBAR_KEY))
+	{
+		displayToolbar = persist_read_bool(DISPLAY_TOOLBAR_KEY);
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Read display toolbar from store: %u", displayToolbar ? 1 : 0);
+	}
 
 	window = window_create();
 	window_set_background_color(window, GColorBlack);
@@ -567,6 +610,9 @@ static void handle_init() {
 
 	const bool animated = true;
 	window_stack_push(window, animated);
+
+    // Subscribe to battery updates
+    battery_state_service_subscribe(handle_battery_state);
 
 	// Subscribe to minute ticks
 	tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);
