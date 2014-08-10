@@ -7,8 +7,11 @@
 #define NUM_LINES 4
 #define LINE_LENGTH 7
 #define BUFFER_SIZE (LINE_LENGTH + 2)
+#define BUFFER_SIZE_DATE 20
 #define ROW_HEIGHT 37
 #define TOP_MARGIN 10
+
+#define TOOLBAR_HEIGHT 16
 
 #define INVERT_KEY 0
 #define TEXT_ALIGN_KEY 1
@@ -50,6 +53,11 @@ typedef struct {
 static Line lines[NUM_LINES];
 static InverterLayer *inverter_layer;
 
+typedef struct {
+	TextLayer *layer;
+} Toolbar;
+
+static Toolbar toolbar;
 static struct tm *t;
 
 static int currentNLines;
@@ -285,6 +293,15 @@ static void display_time(struct tm *t)
 	currentNLines = nextNLines;
 }
 
+// Update screen based on new time
+static void refresh_toolbar(struct tm *t)
+{
+    static char dateBuf[BUFFER_SIZE_DATE];
+    snprintf(dateBuf, BUFFER_SIZE_DATE, "%d. %s", t->tm_mday, get_month_text(lang, t->tm_mon));
+
+	text_layer_set_text(toolbar.layer, dateBuf);
+}
+
 static void initLineForStart(Line* line)
 {
 	// Switch current and next layer
@@ -324,6 +341,8 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
 {
 	t = tick_time;
 	display_time(tick_time);
+	/* No need to do this on every minute - but eaier */
+	refresh_toolbar(tick_time);
 }
 
 /**
@@ -447,6 +466,24 @@ static void destroy_line(Line* line)
 	text_layer_destroy(line->nextLayer);
 }
 
+static void init_toolbar(Toolbar* tb, int windowHeight)
+{
+	// Create layers with dummy position to the right of the screen
+	tb->layer = text_layer_create(GRect(0, windowHeight - TOOLBAR_HEIGHT, 144, TOOLBAR_HEIGHT));
+
+	// Configure a style
+	text_layer_set_font(tb->layer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+	text_layer_set_text_color(tb->layer, GColorWhite);
+	text_layer_set_background_color(tb->layer, GColorBlack);
+	text_layer_set_text_alignment(tb->layer, GTextAlignmentCenter);
+}
+
+static void destroy_toolbar(Toolbar* tb)
+{
+	// Free layer
+	text_layer_destroy(tb->layer);
+}
+
 static void window_load(Window *window)
 {
 	Layer *window_layer = window_get_root_layer(window);
@@ -460,6 +497,9 @@ static void window_load(Window *window)
 		layer_add_child(window_layer, (Layer *)lines[i].nextLayer);
 	}
 
+    init_toolbar(&toolbar, bounds.size.h);
+    layer_add_child(window_layer, (Layer *)toolbar.layer);
+
 	inverter_layer = inverter_layer_create(bounds);
 	layer_set_hidden(inverter_layer_get_layer(inverter_layer), !invert);
 	layer_add_child(window_layer, inverter_layer_get_layer(inverter_layer));
@@ -470,6 +510,7 @@ static void window_load(Window *window)
 	time(&raw_time);
 	t = localtime(&raw_time);
 	display_initial_time(t);
+	refresh_toolbar(t);
 
 	Tuplet initial_values[] = {
 		TupletInteger(TEXT_ALIGN_KEY, (uint8_t) text_align),
@@ -491,6 +532,7 @@ static void window_unload(Window *window)
 	{
 		destroy_line(&lines[i]);
 	}
+	destroy_toolbar(&toolbar);
 }
 
 static void handle_init() {

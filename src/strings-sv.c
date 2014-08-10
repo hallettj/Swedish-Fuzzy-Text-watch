@@ -1,5 +1,21 @@
 #include "strings-sv.h"
 
+const char* const MONTHS_SV[] = {
+  // Jan = 0
+  "January",
+  "Ferbuary",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+};
+
 const char* const HOURS_SV[] = {
   // AM hours
   "tolv",

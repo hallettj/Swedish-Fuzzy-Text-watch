@@ -2,7 +2,7 @@
 #include "string.h"
 
 typedef enum {
-  CA    = 0x0
+  CA    = 0x0,
   DE    = 0x1,
   EN_GB = 0x2,
   EN_US = 0x3,
@@ -12,4 +12,5 @@ typedef enum {
   SV    = 0x7
 } Language;
 
+const char *get_month_text(Language lang, int idx);
 void time_to_words(Language lang, int hours, int minutes, int seconds, char* words, size_t length);

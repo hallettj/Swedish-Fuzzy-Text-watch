@@ -1,5 +1,21 @@
 #include "strings-no.h"
 
+const char* const MONTHS_NO[] = {
+  // Jan = 0
+  "Januar",
+  "Ferbuar",
+  "Mars",
+  "April",
+  "Mai",
+  "Juni",
+  "Juli",
+  "August",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
+};
+
 const char* const HOURS_NO[] = {
   // AM hours
   "tolv",

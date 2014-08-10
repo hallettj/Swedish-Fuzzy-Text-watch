@@ -47,6 +47,37 @@ static size_t interpolate_and_append(char* buffer, const size_t length,
   return remaining;
 }
 
+/**
+ * Months are indexed from 0
+ */
+const char* get_month_text(Language lang, int index) {
+  switch (lang) {
+    case CA:
+      return MONTHS_CA[index];
+      break;
+    case DE:
+      return MONTHS_DE[index];
+      break;
+    case EN_GB:
+      return MONTHS_EN_GB[index];
+      break;
+    case ES:
+      return MONTHS_ES[index];
+      break;
+    case FR:
+      return MONTHS_FR[index];
+      break;
+    case NO:
+      return MONTHS_NO[index];
+      break;
+    case SV:
+      return MONTHS_SV[index];
+      break;
+    default:
+      return MONTHS_EN_US[index];
+  }
+}
+
 const char* get_hour(Language lang, int index) {
   switch (lang) {
     case CA:

@@ -1,5 +1,21 @@
 #include "strings-es.h"
 
+const char* const MONTHS_ES[] = {
+  // Jan = 0
+  "January",
+  "Ferbuary",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+};
+
 const char* const HOURS_ES[] = {
   // AM hours
   "doce",
