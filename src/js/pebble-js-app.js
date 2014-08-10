@@ -33,6 +33,7 @@ function showConfiguration(event) {
   onReady(function() {
     var opts = getOptions();
     var url  = "http://static.sitr.us.s3-website-us-west-2.amazonaws.com/configure-fuzzy-text.html";
+    //var url  = "http://192.168.0.54/configure-fuzzy-text.html";
     Pebble.openURL(url + "#v=" + encodeURIComponent(VERSION) + "&options=" + encodeURIComponent(opts));
   });
 }
@@ -43,6 +44,7 @@ function webviewclosed(event) {
 
   var options = JSON.parse(resp);
   if (typeof options.invert === 'undefined' &&
+      typeof options.toolbar === 'undefined' &&
       typeof options.text_align === 'undefined' &&
       typeof options.lang === 'undefined') {
     return;
@@ -74,7 +76,8 @@ function prepareConfiguration(serialized_settings) {
   return {
     "0": settings.invert ? 1 : 0,
     "1": alignments[settings.text_align],
-    "2": langs[settings.lang]
+    "2": langs[settings.lang],
+    "3": settings.toolbar ? 1 : 0,
   };
 }
 
