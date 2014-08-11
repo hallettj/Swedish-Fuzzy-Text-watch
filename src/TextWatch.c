@@ -11,8 +11,8 @@
 #define TOP_MARGIN 10
 
 #define TOOLBAR_HEIGHT 16
-#define TOOLBAR_BT_WIDTH 30
-#define TOOLBAR_BATT_WIDTH 30
+#define TOOLBAR_BT_WIDTH 16
+#define TOOLBAR_BATT_WIDTH 36
 #define BUFFER_SIZE_DATE 20
 #define BUFFER_SIZE_BATT 6
 #define BUFFER_SIZE_BT 10
@@ -61,7 +61,9 @@ static InverterLayer *inverter_layer;
 
 typedef struct {
 	TextLayer *dateLayer;
-	TextLayer *blutoothLayer;
+    GBitmap *bt_on;
+    GBitmap *bt_off;
+	BitmapLayer *blutoothLayer;
 	TextLayer *batteryLayer;
 } Toolbar;
 
@@ -319,12 +321,10 @@ static void refresh_toolbar(struct tm *t, BatteryChargeState *battState)
     }
 
     if(btConnected == true) {
-        snprintf(btBuf, BUFFER_SIZE_BT, "BT OK");
+        bitmap_layer_set_bitmap(toolbar.blutoothLayer, toolbar.bt_on);
     } else {
-        snprintf(btBuf, BUFFER_SIZE_BT, "!BT!");
+        bitmap_layer_set_bitmap(toolbar.blutoothLayer, toolbar.bt_on);
     }
-	text_layer_set_text(toolbar.blutoothLayer, btBuf);
-
 
     if(battState == NULL) {
         battStatePeeked = battery_state_service_peek();
@@ -524,13 +524,13 @@ static void configureToolbarText(TextLayer *textLayer, GTextAlignment alignment)
 
 static void init_toolbar(Toolbar* tb, GRect windowBounds)
 {
-
 	// Create layers with dummy position to the right of the screen
 	tb->dateLayer = text_layer_create(GRect(0, windowBounds.size.h - TOOLBAR_HEIGHT, windowBounds.size.w - (TOOLBAR_BATT_WIDTH + TOOLBAR_BT_WIDTH), TOOLBAR_HEIGHT));
     configureToolbarText(tb->dateLayer, GTextAlignmentLeft);
 
-	tb->blutoothLayer = text_layer_create(GRect(windowBounds.size.w - (TOOLBAR_BATT_WIDTH + TOOLBAR_BT_WIDTH), windowBounds.size.h - TOOLBAR_HEIGHT, TOOLBAR_BT_WIDTH, TOOLBAR_HEIGHT));
-    configureToolbarText(tb->batteryLayer, GTextAlignmentRight);
+    tb->bt_on = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BT_ON);
+    tb->bt_off = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BT_OFF);
+	tb->blutoothLayer = bitmap_layer_create(GRect(windowBounds.size.w - (TOOLBAR_BATT_WIDTH + TOOLBAR_BT_WIDTH), windowBounds.size.h - TOOLBAR_HEIGHT, TOOLBAR_BT_WIDTH, TOOLBAR_HEIGHT));
 
 	tb->batteryLayer = text_layer_create(GRect(windowBounds.size.w - TOOLBAR_BATT_WIDTH, windowBounds.size.h - TOOLBAR_HEIGHT, TOOLBAR_BATT_WIDTH, TOOLBAR_HEIGHT));
     configureToolbarText(tb->batteryLayer, GTextAlignmentRight);
@@ -540,8 +540,14 @@ static void destroy_toolbar(Toolbar* tb)
 {
 	// Free layer
 	text_layer_destroy(tb->dateLayer);
-	text_layer_destroy(tb->blutoothLayer);
 	text_layer_destroy(tb->batteryLayer);
+
+	//Destroy GBitmaps
+    gbitmap_destroy(tb->bt_on);
+    gbitmap_destroy(tb->bt_off);
+
+    //Destroy BitmapLayers
+    bitmap_layer_destroy(tb->blutoothLayer);
 }
 
 static void window_load(Window *window)
@@ -559,6 +565,7 @@ static void window_load(Window *window)
 
     init_toolbar(&toolbar, bounds);
     layer_add_child(window_layer, (Layer *)toolbar.dateLayer);
+    layer_add_child(window_layer, (Layer *)toolbar.blutoothLayer);
     layer_add_child(window_layer, (Layer *)toolbar.batteryLayer);
 
 	inverter_layer = inverter_layer_create(bounds);

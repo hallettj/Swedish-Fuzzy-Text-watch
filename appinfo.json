@@ -11,6 +11,17 @@
   "capabilities": [ "configurable" ],
   "appKeys": {},
   "resources": {
-    "media": []
+    "media": [
+        {
+            "type": "png",
+            "name": "IMAGE_BT_ON",
+            "file": "images/bt_on.png"
+        },
+        {
+            "type": "png",
+            "name": "IMAGE_BT_OFF",
+            "file": "images/bt_off.png"
+        }
+    ]
   }
 }
