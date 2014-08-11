@@ -323,7 +323,7 @@ static void refresh_toolbar(struct tm *t, BatteryChargeState *battState)
     if(btConnected == true) {
         bitmap_layer_set_bitmap(toolbar.blutoothLayer, toolbar.bt_on);
     } else {
-        bitmap_layer_set_bitmap(toolbar.blutoothLayer, toolbar.bt_on);
+        bitmap_layer_set_bitmap(toolbar.blutoothLayer, toolbar.bt_off);
     }
 
     if(battState == NULL) {
