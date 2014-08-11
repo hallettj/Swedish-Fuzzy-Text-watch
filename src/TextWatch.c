@@ -7,11 +7,15 @@
 #define NUM_LINES 4
 #define LINE_LENGTH 7
 #define BUFFER_SIZE (LINE_LENGTH + 2)
-#define BUFFER_SIZE_DATE 20
 #define ROW_HEIGHT 37
 #define TOP_MARGIN 10
 
 #define TOOLBAR_HEIGHT 16
+#define TOOLBAR_BT_WIDTH 30
+#define TOOLBAR_BATT_WIDTH 30
+#define BUFFER_SIZE_DATE 20
+#define BUFFER_SIZE_BATT 6
+#define BUFFER_SIZE_BT 10
 
 #define INVERT_KEY 0
 #define TEXT_ALIGN_KEY 1
@@ -57,6 +61,7 @@ static InverterLayer *inverter_layer;
 
 typedef struct {
 	TextLayer *dateLayer;
+	TextLayer *blutoothLayer;
 	TextLayer *batteryLayer;
 } Toolbar;
 
@@ -300,17 +305,26 @@ static void display_time(struct tm *t)
 static void refresh_toolbar(struct tm *t, BatteryChargeState *battState)
 {
     static char dateBuf[BUFFER_SIZE_DATE];
-    static char battBuf[BUFFER_SIZE_DATE];
+    static char battBuf[BUFFER_SIZE_BATT];
+    static char btBuf[BUFFER_SIZE_BT];
     BatteryChargeState battStatePeeked;
+    bool btConnected = bluetooth_connection_service_peek();
 
     if(displayToolbar == false) {
         return;
     }
-
     if(t != NULL) {
         snprintf(dateBuf, BUFFER_SIZE_DATE, "%d. %s", t->tm_mday, get_month_text(lang, t->tm_mon));
     	text_layer_set_text(toolbar.dateLayer, dateBuf);
     }
+
+    if(btConnected == true) {
+        snprintf(btBuf, BUFFER_SIZE_BT, "BT OK");
+    } else {
+        snprintf(btBuf, BUFFER_SIZE_BT, "!BT!");
+    }
+	text_layer_set_text(toolbar.blutoothLayer, btBuf);
+
 
     if(battState == NULL) {
         battStatePeeked = battery_state_service_peek();
@@ -318,9 +332,9 @@ static void refresh_toolbar(struct tm *t, BatteryChargeState *battState)
     }
 
     if(battState->is_plugged == true) {
-        snprintf(battBuf, BUFFER_SIZE_DATE, "-");
+        snprintf(battBuf, BUFFER_SIZE_BATT, "CHRG");
     } else {
-        snprintf(battBuf, BUFFER_SIZE_DATE, "%d%%", battState->charge_percent);
+        snprintf(battBuf, BUFFER_SIZE_BATT, "%d%%", battState->charge_percent);
     }
 	text_layer_set_text(toolbar.batteryLayer, battBuf);
 }
@@ -505,11 +519,15 @@ static void configureToolbarText(TextLayer *textLayer, GTextAlignment alignment)
 
 static void init_toolbar(Toolbar* tb, GRect windowBounds)
 {
+
 	// Create layers with dummy position to the right of the screen
-	tb->dateLayer = text_layer_create(GRect(0, windowBounds.size.h - TOOLBAR_HEIGHT, windowBounds.size.w - 30, TOOLBAR_HEIGHT));
+	tb->dateLayer = text_layer_create(GRect(0, windowBounds.size.h - TOOLBAR_HEIGHT, windowBounds.size.w - (TOOLBAR_BATT_WIDTH + TOOLBAR_BT_WIDTH), TOOLBAR_HEIGHT));
     configureToolbarText(tb->dateLayer, GTextAlignmentLeft);
 
-	tb->batteryLayer = text_layer_create(GRect(windowBounds.size.w - 30, windowBounds.size.h - TOOLBAR_HEIGHT, 30, TOOLBAR_HEIGHT));
+	tb->blutoothLayer = text_layer_create(GRect(windowBounds.size.w - (TOOLBAR_BATT_WIDTH + TOOLBAR_BT_WIDTH), windowBounds.size.h - TOOLBAR_HEIGHT, TOOLBAR_BT_WIDTH, TOOLBAR_HEIGHT));
+    configureToolbarText(tb->batteryLayer, GTextAlignmentRight);
+
+	tb->batteryLayer = text_layer_create(GRect(windowBounds.size.w - TOOLBAR_BATT_WIDTH, windowBounds.size.h - TOOLBAR_HEIGHT, TOOLBAR_BATT_WIDTH, TOOLBAR_HEIGHT));
     configureToolbarText(tb->batteryLayer, GTextAlignmentRight);
 }
 
@@ -517,6 +535,7 @@ static void destroy_toolbar(Toolbar* tb)
 {
 	// Free layer
 	text_layer_destroy(tb->dateLayer);
+	text_layer_destroy(tb->blutoothLayer);
 	text_layer_destroy(tb->batteryLayer);
 }
 
