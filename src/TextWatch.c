@@ -382,6 +382,11 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
 	refresh_toolbar(tick_time, NULL);
 }
 
+static void handle_bt_state(bool connected)
+{
+	refresh_toolbar(NULL, NULL);
+}
+
 
 static void handle_battery_state(BatteryChargeState chargeState)
 {
@@ -629,6 +634,9 @@ static void handle_init() {
 
 	const bool animated = true;
 	window_stack_push(window, animated);
+
+    // Subscribe to BT updates
+    bluetooth_connection_service_subscribe(handle_bt_state);
 
     // Subscribe to battery updates
     battery_state_service_subscribe(handle_battery_state);
