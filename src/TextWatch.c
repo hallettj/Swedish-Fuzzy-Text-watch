@@ -542,12 +542,12 @@ static void destroy_toolbar(Toolbar* tb)
 	text_layer_destroy(tb->dateLayer);
 	text_layer_destroy(tb->batteryLayer);
 
+    //Destroy BitmapLayers
+    bitmap_layer_destroy(tb->blutoothLayer);
+
 	//Destroy GBitmaps
     gbitmap_destroy(tb->bt_on);
     gbitmap_destroy(tb->bt_off);
-
-    //Destroy BitmapLayers
-    bitmap_layer_destroy(tb->blutoothLayer);
 }
 
 static void window_load(Window *window)
