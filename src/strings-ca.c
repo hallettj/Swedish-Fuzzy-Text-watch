@@ -1,5 +1,21 @@
 #include "strings-ca.h"
 
+const char* const MONTHS_CA[] = {
+  // Jan = 0
+  "January",
+  "Ferbuary",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+};
+
 const char* const HOURS_CA[] = {
   // AM hours
   "dotze",

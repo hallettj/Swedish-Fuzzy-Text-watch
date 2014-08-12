@@ -10,9 +10,17 @@
 #define ROW_HEIGHT 37
 #define TOP_MARGIN 10
 
+#define TOOLBAR_HEIGHT 16
+#define TOOLBAR_BT_WIDTH 16
+#define TOOLBAR_BATT_WIDTH 36
+#define BUFFER_SIZE_DATE 20
+#define BUFFER_SIZE_BATT 6
+#define BUFFER_SIZE_BT 10
+
 #define INVERT_KEY 0
 #define TEXT_ALIGN_KEY 1
 #define LANGUAGE_KEY 2
+#define DISPLAY_TOOLBAR_KEY 3
 
 #define TEXT_ALIGN_CENTER 0
 #define TEXT_ALIGN_LEFT 1
@@ -35,6 +43,7 @@ static uint8_t sync_buffer[64];
 static int text_align = TEXT_ALIGN_CENTER;
 static bool invert = false;
 static Language lang = EN_US;
+static bool displayToolbar = true;
 
 static Window *window;
 
@@ -50,6 +59,15 @@ typedef struct {
 static Line lines[NUM_LINES];
 static InverterLayer *inverter_layer;
 
+typedef struct {
+	TextLayer *dateLayer;
+    GBitmap *bt_on;
+    GBitmap *bt_off;
+	BitmapLayer *blutoothLayer;
+	TextLayer *batteryLayer;
+} Toolbar;
+
+static Toolbar toolbar;
 static struct tm *t;
 
 static int currentNLines;
@@ -285,6 +303,42 @@ static void display_time(struct tm *t)
 	currentNLines = nextNLines;
 }
 
+// Update screen based on new time
+static void refresh_toolbar(struct tm *t, BatteryChargeState *battState)
+{
+    static char dateBuf[BUFFER_SIZE_DATE];
+    static char battBuf[BUFFER_SIZE_BATT];
+    static char btBuf[BUFFER_SIZE_BT];
+    BatteryChargeState battStatePeeked;
+    bool btConnected = bluetooth_connection_service_peek();
+
+    if(displayToolbar == false) {
+        return;
+    }
+    if(t != NULL) {
+        snprintf(dateBuf, BUFFER_SIZE_DATE, "%d. %s", t->tm_mday, get_month_text(lang, t->tm_mon));
+    	text_layer_set_text(toolbar.dateLayer, dateBuf);
+    }
+
+    if(btConnected == true) {
+        bitmap_layer_set_bitmap(toolbar.blutoothLayer, toolbar.bt_on);
+    } else {
+        bitmap_layer_set_bitmap(toolbar.blutoothLayer, toolbar.bt_off);
+    }
+
+    if(battState == NULL) {
+        battStatePeeked = battery_state_service_peek();
+        battState = &battStatePeeked;
+    }
+
+    if(battState->is_plugged == true) {
+        snprintf(battBuf, BUFFER_SIZE_BATT, "CHRG");
+    } else {
+        snprintf(battBuf, BUFFER_SIZE_BATT, "%d%%", battState->charge_percent);
+    }
+	text_layer_set_text(toolbar.batteryLayer, battBuf);
+}
+
 static void initLineForStart(Line* line)
 {
 	// Switch current and next layer
@@ -324,6 +378,19 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
 {
 	t = tick_time;
 	display_time(tick_time);
+	/* No need to do this on every minute - but eaier */
+	refresh_toolbar(tick_time, NULL);
+}
+
+static void handle_bt_state(bool connected)
+{
+	refresh_toolbar(NULL, NULL);
+}
+
+
+static void handle_battery_state(BatteryChargeState chargeState)
+{
+	refresh_toolbar(NULL, &chargeState);
 }
 
 /**
@@ -332,10 +399,9 @@ static void handle_minute_tick(struct tm *tick_time, TimeUnits units_changed)
  */
 #if DEBUG
 
-static void up_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
+static void up_single_click_handler(ClickRecognizerRef recognizer, void *context) {
 	(void)recognizer;
-	(void)window;
-	
+
 	t->tm_min += 5;
 	if (t->tm_min >= 60) {
 		t->tm_min = 0;
@@ -348,11 +414,9 @@ static void up_single_click_handler(ClickRecognizerRef recognizer, Window *windo
 	display_time(t);
 }
 
-
-static void down_single_click_handler(ClickRecognizerRef recognizer, Window *window) {
+static void down_single_click_handler(ClickRecognizerRef recognizer, void *context) {
 	(void)recognizer;
-	(void)window;
-	
+
 	t->tm_min -= 5;
 	if (t->tm_min < 0) {
 		t->tm_min = 55;
@@ -365,14 +429,9 @@ static void down_single_click_handler(ClickRecognizerRef recognizer, Window *win
 	display_time(t);
 }
 
-static void click_config_provider(ClickConfig **config, Window *window) {
-  (void)window;
-
-  config[BUTTON_ID_UP]->click.handler = (ClickHandler) up_single_click_handler;
-  config[BUTTON_ID_UP]->click.repeat_interval_ms = 100;
-
-  config[BUTTON_ID_DOWN]->click.handler = (ClickHandler) down_single_click_handler;
-  config[BUTTON_ID_DOWN]->click.repeat_interval_ms = 100;
+static void click_config_provider(void *context) {
+    window_single_click_subscribe(BUTTON_ID_UP, up_single_click_handler);
+    window_single_click_subscribe(BUTTON_ID_DOWN, down_single_click_handler);
 }
 
 #endif
@@ -416,6 +475,14 @@ static void sync_tuple_changed_callback(const uint32_t key, const Tuple* new_tup
 			{
 				display_time(t);
 			}
+            break;
+		case DISPLAY_TOOLBAR_KEY:
+			displayToolbar = new_tuple->value->uint8 == 1;
+			persist_write_bool(DISPLAY_TOOLBAR_KEY, displayToolbar);
+			APP_LOG(APP_LOG_LEVEL_DEBUG, "Set display toolbar: %u", displayToolbar ? 1 : 0);
+
+            refresh_toolbar(NULL, NULL);
+			break;
 	}
 }
 
@@ -447,6 +514,42 @@ static void destroy_line(Line* line)
 	text_layer_destroy(line->nextLayer);
 }
 
+static void configureToolbarText(TextLayer *textLayer, GTextAlignment alignment)
+{
+	text_layer_set_font(textLayer, fonts_get_system_font(FONT_KEY_GOTHIC_14));
+	text_layer_set_text_color(textLayer, (invert == true) ? GColorBlack : GColorWhite);
+	text_layer_set_background_color(textLayer, GColorClear);
+	text_layer_set_text_alignment(textLayer, alignment);
+}
+
+static void init_toolbar(Toolbar* tb, GRect windowBounds)
+{
+	// Create layers with dummy position to the right of the screen
+	tb->dateLayer = text_layer_create(GRect(0, windowBounds.size.h - TOOLBAR_HEIGHT, windowBounds.size.w - (TOOLBAR_BATT_WIDTH + TOOLBAR_BT_WIDTH), TOOLBAR_HEIGHT));
+    configureToolbarText(tb->dateLayer, GTextAlignmentLeft);
+
+    tb->bt_on = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BT_ON);
+    tb->bt_off = gbitmap_create_with_resource(RESOURCE_ID_IMAGE_BT_OFF);
+	tb->blutoothLayer = bitmap_layer_create(GRect(windowBounds.size.w - (TOOLBAR_BATT_WIDTH + TOOLBAR_BT_WIDTH), windowBounds.size.h - TOOLBAR_HEIGHT, TOOLBAR_BT_WIDTH, TOOLBAR_HEIGHT));
+
+	tb->batteryLayer = text_layer_create(GRect(windowBounds.size.w - TOOLBAR_BATT_WIDTH, windowBounds.size.h - TOOLBAR_HEIGHT, TOOLBAR_BATT_WIDTH, TOOLBAR_HEIGHT));
+    configureToolbarText(tb->batteryLayer, GTextAlignmentRight);
+}
+
+static void destroy_toolbar(Toolbar* tb)
+{
+	// Free layer
+	text_layer_destroy(tb->dateLayer);
+	text_layer_destroy(tb->batteryLayer);
+
+    //Destroy BitmapLayers
+    bitmap_layer_destroy(tb->blutoothLayer);
+
+	//Destroy GBitmaps
+    gbitmap_destroy(tb->bt_on);
+    gbitmap_destroy(tb->bt_off);
+}
+
 static void window_load(Window *window)
 {
 	Layer *window_layer = window_get_root_layer(window);
@@ -460,6 +563,11 @@ static void window_load(Window *window)
 		layer_add_child(window_layer, (Layer *)lines[i].nextLayer);
 	}
 
+    init_toolbar(&toolbar, bounds);
+    layer_add_child(window_layer, (Layer *)toolbar.dateLayer);
+    layer_add_child(window_layer, (Layer *)toolbar.blutoothLayer);
+    layer_add_child(window_layer, (Layer *)toolbar.batteryLayer);
+
 	inverter_layer = inverter_layer_create(bounds);
 	layer_set_hidden(inverter_layer_get_layer(inverter_layer), !invert);
 	layer_add_child(window_layer, inverter_layer_get_layer(inverter_layer));
@@ -470,11 +578,13 @@ static void window_load(Window *window)
 	time(&raw_time);
 	t = localtime(&raw_time);
 	display_initial_time(t);
+	refresh_toolbar(t, NULL);
 
 	Tuplet initial_values[] = {
-		TupletInteger(TEXT_ALIGN_KEY, (uint8_t) text_align),
-		TupletInteger(INVERT_KEY,     (uint8_t) invert ? 1 : 0),
-		TupletInteger(LANGUAGE_KEY,   (uint8_t) lang)
+		TupletInteger(TEXT_ALIGN_KEY,      (uint8_t) text_align),
+		TupletInteger(INVERT_KEY,          (uint8_t) invert ? 1 : 0),
+		TupletInteger(LANGUAGE_KEY,        (uint8_t) lang),
+		TupletInteger(DISPLAY_TOOLBAR_KEY, (uint8_t) displayToolbar ? 1 : 0),
 	};
 
 	app_sync_init(&sync, sync_buffer, sizeof(sync_buffer), initial_values, ARRAY_LENGTH(initial_values),
@@ -491,6 +601,10 @@ static void window_unload(Window *window)
 	{
 		destroy_line(&lines[i]);
 	}
+    bluetooth_connection_service_unsubscribe();
+    battery_state_service_unsubscribe();
+
+	destroy_toolbar(&toolbar);
 }
 
 static void handle_init() {
@@ -510,6 +624,11 @@ static void handle_init() {
 		lang = (Language) persist_read_int(LANGUAGE_KEY);
 		APP_LOG(APP_LOG_LEVEL_DEBUG, "Read language from store: %u", lang);
 	}
+	if (persist_exists(DISPLAY_TOOLBAR_KEY))
+	{
+		displayToolbar = persist_read_bool(DISPLAY_TOOLBAR_KEY);
+		APP_LOG(APP_LOG_LEVEL_DEBUG, "Read display toolbar from store: %u", displayToolbar ? 1 : 0);
+	}
 
 	window = window_create();
 	window_set_background_color(window, GColorBlack);
@@ -525,6 +644,12 @@ static void handle_init() {
 
 	const bool animated = true;
 	window_stack_push(window, animated);
+
+    // Subscribe to BT updates
+    bluetooth_connection_service_subscribe(handle_bt_state);
+
+    // Subscribe to battery updates
+    battery_state_service_subscribe(handle_battery_state);
 
 	// Subscribe to minute ticks
 	tick_timer_service_subscribe(MINUTE_UNIT, handle_minute_tick);

@@ -59,7 +59,17 @@
 				</div>
 			</fieldset>
 
-			<fieldset>
+            <fieldset>
+                <legend>Toolbar:</legend>
+                <div class="checkbox">
+                    <label>
+                        <input type="checkbox" name="toolbar" value="on" />
+                        display toolbar
+                    </label>
+                </div>
+            </fieldset>
+
+            <fieldset>
 				<legend>Text align:</legend>
 				<div class="radio-inline">
 					<label>
@@ -163,6 +173,7 @@
 
 			var options = {
 				invert:		params.invert === 'on',
+                toolbar:	params.toolbar === 'on',
 				text_align:	params.align || 'center',
 				lang:		params.lang
 			}
@@ -175,6 +186,9 @@
 			if (opts && opts.invert) {
 				$form.find('[name="invert"]').prop('checked', true);
 			}
+            if (opts && opts.toolbar) {
+                $form.find('[name="toolbar"]').prop('checked', true);
+            }
 			if (opts && opts.text_align) {
 				$form.find('[name="align"]').filter(function(i, btn) {
 					return btn.value === opts.text_align;
