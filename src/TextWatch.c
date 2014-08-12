@@ -601,6 +601,9 @@ static void window_unload(Window *window)
 	{
 		destroy_line(&lines[i]);
 	}
+    bluetooth_connection_service_unsubscribe();
+    battery_state_service_unsubscribe();
+
 	destroy_toolbar(&toolbar);
 }
 
