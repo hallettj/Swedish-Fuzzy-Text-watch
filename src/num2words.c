@@ -6,6 +6,7 @@
 #include "strings-es.h"
 #include "strings-fr.h"
 #include "strings-no.h"
+#include "strings-sl.h"
 #include "strings-sv.h"
 #include "string.h"
 
@@ -67,6 +68,9 @@ const char* get_hour(Language lang, int index) {
     case NO:
       return HOURS_NO[index];
       break;
+    case SL:
+      return HOURS_SL[index];
+      break;
     case SV:
       return HOURS_SV[index];
       break;
@@ -94,6 +98,9 @@ const char* get_rel(Language lang, int index) {
       break;
     case NO:
       return RELS_NO[index];
+      break;
+    case SL:
+      return RELS_SL[index];
       break;
     case SV:
       return RELS_SV[index];
@@ -123,7 +130,13 @@ void time_to_words(Language lang, int hours, int minutes, int seconds, char* wor
   }
 
   const char* hour = get_hour(lang, hour_index);
-  const char* next_hour = get_hour(lang, (hour_index + 1) % 24);
+  const char* next_hour;
+  if (lang == SL) {
+      // special form for next hour
+      next_hour = get_hour(lang, 24 + (hour_index + 1) % 24);
+  } else {
+      next_hour = get_hour(lang, (hour_index + 1) % 24);
+  }
   const char* rel  = get_rel(lang, rel_index);
 
   remaining -= interpolate_and_append(words, remaining, rel, hour, next_hour);
