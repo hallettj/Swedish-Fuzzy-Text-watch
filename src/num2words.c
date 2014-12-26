@@ -7,6 +7,7 @@
 #include "strings-fr.h"
 #include "strings-no.h"
 #include "strings-sv.h"
+#include "strings-ur.h"
 #include "string.h"
 
 size_t min(const size_t a, const size_t b) {
@@ -70,6 +71,9 @@ const char* get_hour(Language lang, int index) {
     case SV:
       return HOURS_SV[index];
       break;
+    case UR:
+      return HOURS_UR[index];
+      break;
     default:
       return HOURS_EN_US[index];
   }
@@ -97,6 +101,9 @@ const char* get_rel(Language lang, int index) {
       break;
     case SV:
       return RELS_SV[index];
+      break;
+    case UR:
+      return RELS_UR[index];
       break;
     default:
       return RELS_EN_US[index];
