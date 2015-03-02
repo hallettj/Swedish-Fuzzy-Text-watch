@@ -7,6 +7,7 @@
 #include "strings-fr.h"
 #include "strings-no.h"
 #include "strings-sv.h"
+#include "strings-pt.h"
 #include "string.h"
 
 size_t min(const size_t a, const size_t b) {
@@ -67,6 +68,9 @@ const char* get_hour(Language lang, int index) {
     case NO:
       return HOURS_NO[index];
       break;
+    case PT:
+      return HOURS_PT[index];
+      break;
     case SV:
       return HOURS_SV[index];
       break;
@@ -94,6 +98,9 @@ const char* get_rel(Language lang, int index) {
       break;
     case NO:
       return RELS_NO[index];
+      break;
+    case PT:
+      return RELS_PT[index];
       break;
     case SV:
       return RELS_SV[index];
