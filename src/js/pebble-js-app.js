@@ -16,8 +16,9 @@ var langs = {
   en_US: 3,
   es:    4,
   fr:    5,
-  no:    6,
-  sv:    7
+  nl:    6,
+  no:    7,
+  sv:    8
 };
 
 function readyCallback(event) {

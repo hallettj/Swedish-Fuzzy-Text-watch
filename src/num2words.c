@@ -5,6 +5,7 @@
 #include "strings-en_US.h"
 #include "strings-es.h"
 #include "strings-fr.h"
+#include "strings-nl.h"
 #include "strings-no.h"
 #include "strings-sv.h"
 #include "string.h"
@@ -91,6 +92,9 @@ const char* get_hour(Language lang, int index) {
     case FR:
       return HOURS_FR[index];
       break;
+    case NL:
+      return HOURS_NL[index];
+      break;
     case NO:
       return HOURS_NO[index];
       break;
@@ -118,6 +122,9 @@ const char* get_rel(Language lang, int index) {
       break;
     case FR:
       return RELS_FR[index];
+      break;
+    case NL:
+      return RELS_NL[index];
       break;
     case NO:
       return RELS_NO[index];
